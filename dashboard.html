@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Crowd Count</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif;}
+body{display:flex;height:100vh;overflow:hidden;background:#f0f4f8;}
+/* Sidebar */
+.sidebar{
+    width:220px;
+    background:linear-gradient(to bottom,#667eea,#764ba2);
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    padding:20px 0;
+}
+.sidebar h2{
+    text-align:center;
+    margin-bottom:30px;
+    font-size:20px;
+}
+.sidebar button{
+    background:none;
+    border:none;
+    color:#fff;
+    padding:15px 20px;
+    text-align:left;
+    font-size:16px;
+    width:100%;
+    cursor:pointer;
+    transition:0.3s;
+}
+.sidebar button:hover{
+    background:rgba(255,255,255,0.2);
+    transform:translateX(5px);
+}
+.sidebar .logout{
+    margin-top:auto;
+    background:#ff4f79;
+    border-radius:10px;
+    text-align:center;
+}
+.sidebar .logout:hover{
+    background:#ff2f5c;
+}
+/* Main content */
+.main{
+    flex:1;
+    padding:20px;
+    overflow-y:auto;
+}
+/* Cards */
+.card{
+    background:#fff;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 5px 20px rgba(0,0,0,0.1);
+    margin-bottom:20px;
+}
+/* Sections hidden by default */
+.section{
+    display:none;
+}
+/* Show active section */
+.section.active{
+    display:block;
+}
+/* Headings */
+.card h3{
+    margin-bottom:15px;
+    color:#333;
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <h2>Dashboard</h2>
+    <p style="text-align:center; margin-bottom:20px;">Welcome, {{ username }}!</p>
+
+    <button onclick="showSection('upload')">Upload Video</button>
+
+    <h3 style="margin-left:10px;">Zone Manipulation</h3>
+    <div id="zoneControls" style="display:flex; flex-direction: column; margin-left: 10px;">
+        <button onclick="startDrawZone()">Draw Zone</button>
+        <button onclick="previewZones()">Preview Zone</button>
+        <button onclick="renameZone()">Rename Zone</button>
+        <button onclick="deleteZone()">Delete Zone</button>
+        <button onclick="saveZone()">Save Zone</button>
+    </div>
+
+    <!-- Track IDs Button -->
+    <button onclick="toggleTracking()">Track IDs</button>
+
+    <button onclick="showSection('visualization')">Visualization</button>
+    <button class="logout" onclick="logout()">Logout</button>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+    <!-- Upload Video + Canvas Overlay -->
+    <div id="upload" class="section active card">
+        <h3>Upload Video & Draw Zones</h3>
+        <p>Choose a video file to stream:</p>
+        <input type="file" id="videoFile" accept="video/*" onchange="loadVideo(event)" style="margin-bottom:15px;">
+
+        <!-- Video + Canvas Container -->
+        <div style="position: relative; width: 800px; height: 400px;">
+            <video id="uploadedVideo" width="800" height="400" controls></video>
+            <canvas id="zoneCanvas" width="800" height="400" 
+                style="position: absolute; top: 0; left: 0; border:1px solid red;"></canvas>
+        </div>
+
+        <!-- Real-Time Tracking Section -->
+        <div id="trackingSection" style="display:none; margin-top:20px;">
+            <h3>Real-Time Tracking</h3>
+            <img id="yoloStream" src="{{ url_for('video_feed') }}" width="640" height="480">
+        </div>
+    </div>
+
+    <!-- Visualization Section -->
+    <div id="visualization" class="section card" style="display:none;">
+        <h3>Visualization</h3>
+        <div style="display:flex; gap:20px;">
+            <div style="flex:1; background:#f5f5f5; padding:10px; border-radius:10px;">
+                <h4>Real-Time Population</h4>
+                <p>Placeholder chart / live numbers</p>
+            </div>
+            <div style="flex:1; background:#f5f5f5; padding:10px; border-radius:10px;">
+                <h4>Zone Occupancy</h4>
+                <p>Placeholder chart</p>
+            </div>
+        </div>
+        <div style="margin-top:20px; background:#f5f5f5; padding:10px; border-radius:10px;">
+            <h4>Activity Heatmap</h4>
+            <p>Placeholder heatmap</p>
+        </div>
+        <div style="margin-top:10px;">
+            <strong>Alert:</strong> Crossing high threshold (placeholder)
+        </div>
+    </div>
+</div>
+
+<script>
+function showSection(sectionId){
+    const sections = document.querySelectorAll('.section');
+    sections.forEach(sec => sec.classList.remove('active'));
+    document.getElementById(sectionId).classList.add('active');
+}
+
+// Load video
+function loadVideo(event){
+    const file = event.target.files[0];
+    if(file){
+        const url = URL.createObjectURL(file);
+        const video = document.getElementById('uploadedVideo');
+        video.src = url;
+        video.load();
+        video.play();
+    }
+}
+
+// ======== Zone Drawing ========
+let canvas = document.getElementById('zoneCanvas');
+let ctx = canvas.getContext('2d');
+let isDrawing = false;
+let startX, startY;
+let currentRect = null;
+let zones = []; // Store saved zones
+
+canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    isDrawing = true;
+});
+
+canvas.addEventListener('mousemove', e => {
+    if(!isDrawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const width = mouseX - startX;
+    const height = mouseY - startY;
+
+    currentRect = {x: startX, y: startY, width, height};
+    redrawCanvas();
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(startX, startY, width, height);
+});
+
+canvas.addEventListener('mouseup', e => {
+    isDrawing = false;
+});
+
+// Save Zone (only one version now)
+function saveZone() {
+    if (!currentRect) {
+        alert('Draw a zone first!');
+        return;
+    }
+    let name = prompt('Enter zone name:');
+    if (!name) return;
+
+    zones.push({name, ...currentRect});
+    currentRect = null; 
+    redrawCanvas();
+    updateZoneList();
+}
+
+function redrawCanvas(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    zones.forEach(z => {
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(z.x, z.y, z.width, z.height);
+        ctx.fillStyle = 'blue';
+        ctx.font = '14px Arial';
+        ctx.fillText(z.name, z.x + 5, z.y + 15);
+    });
+}
+
+function previewZones(){
+    if(zones.length === 0){
+        alert('No zones saved yet.');
+        return;
+    }
+    let list = zones.map(z => z.name).join('\n'); 
+    alert('Saved Zones:\n' + list);
+}
+
+function renameZone(){
+    if(zones.length === 0){ alert('No zones to rename'); return; }
+    let oldName = prompt('Enter the zone name to rename:');
+    let zone = zones.find(z => z.name === oldName);
+    if(!zone){ alert('Zone not found!'); return; }
+    let newName = prompt('Enter new name:');
+    if(newName) zone.name = newName;
+    redrawCanvas();
+    updateZoneList();
+}
+
+function deleteZone(){
+    if(zones.length === 0){ alert('No zones to delete'); return; }
+    let delName = prompt('Enter the zone name to delete:');
+    let index = zones.findIndex(z => z.name === delName);
+    if(index === -1){ alert('Zone not found!'); return; }
+    zones.splice(index, 1);
+    redrawCanvas();
+    updateZoneList();
+}
+
+function updateZoneList(){
+    let ul = document.getElementById('zoneList');
+    if (!ul) return;
+    ul.innerHTML = '';
+    zones.forEach(z => {
+        let li = document.createElement('li');
+        li.textContent = `${z.name} (${Math.round(z.x)}, ${Math.round(z.y)}, ${Math.round(z.width)}, ${Math.round(z.height)})`;
+        ul.appendChild(li);
+    });
+}
+
+// ===== Tracking State =====
+let trackingEnabled = false;
+let trackedObjects = [];
+
+function toggleTracking() {
+    const trackingSection = document.getElementById('trackingSection');
+
+    if (trackingSection.style.display === 'none') {
+        trackingSection.style.display = 'block';
+    } else {
+        trackingSection.style.display = 'none';
+    }
+
+    trackingEnabled = !trackingEnabled;
+    if (trackingEnabled) {
+        alert("Tracking started...");
+        startTracking();
+    } else {
+        alert("Tracking stopped.");
+        redrawCanvas();
+    }
+}
+
+function startTracking() {
+    trackedObjects = dummyTracks(); 
+    drawTracks();
+}
+
+function drawTracks() {
+    redrawCanvas();
+    trackedObjects.forEach(obj => {
+        ctx.strokeStyle = 'green';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+        ctx.fillStyle = 'green';
+        ctx.font = '12px Arial';
+        ctx.fillText("ID: " + obj.id, obj.x + 5, obj.y - 5);
+    });
+}
+
+function dummyTracks() {
+    return [
+        {id: 1, x: 100, y: 80, w: 60, h: 90},
+        {id: 2, x: 300, y: 150, w: 70, h: 100},
+        {id: 3, x: 500, y: 200, w: 65, h: 95}
+    ];
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register - Crowd Count</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+html,body{height:100%;width:100%;overflow:hidden;}
+body{background:linear-gradient(-45deg,#ff758c,#ff7eb3,#42e695,#f3ff6c);background-size:400% 400%;animation:gradientBG 15s ease infinite;display:flex;justify-content:center;align-items:center;}
+@keyframes gradientBG{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+.card{background:rgba(255,255,255,0.95);padding:50px 40px;border-radius:20px;width:350px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.3);transition:transform 0.3s ease,box-shadow 0.3s ease;}
+.card:hover{transform:translateY(-10px);box-shadow:0 30px 60px rgba(0,0,0,0.35);}
+.card h2{font-size:32px;margin-bottom:30px;color:#333;}
+.card input{width:100%;padding:14px 20px;margin-bottom:20px;border-radius:10px;border:1px solid #ccc;font-size:16px;transition:all 0.3s;}
+.card input:focus{border-color:#ff758c;outline:none;box-shadow:0 0 8px rgba(255,117,140,0.5);}
+.card button{width:100%;padding:16px;border:none;border-radius:10px;background:#ff758c;color:#fff;font-size:16px;cursor:pointer;transition:all 0.3s ease;}
+.card button:hover{background:#ff4f79;transform:translateY(-2px);}
+.text{margin-top:20px;font-size:14px;color:#555;}
+.text a{color:#ff758c;font-weight:600;text-decoration:none;}
+.text a:hover{text-decoration:underline;}
+@media(max-width:400px){.card{width:90%;padding:40px 20px;}}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>Register</h2>
+<form method="POST">
+<input type="text" name="username" placeholder="Username" required>
+<input type="password" name="password" placeholder="Password" required>
+<button type="submit">Register</button>
+</form>
+<p class="text">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+</div>
+</body>
+</html>
