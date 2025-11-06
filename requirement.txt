@@ -1,0 +1,11 @@
+flask
+flask-socketio
+eventlet
+flask_sqlalchemy
+flask_login
+opencv-python
+torch
+torchvision
+shapely
+matplotlib
+pandas
